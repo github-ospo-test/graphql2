@@ -149,7 +149,15 @@ TODO
 
 ## Learning GraphQL
 
-Welcome to the basics of GraphQL. This is not meant for you to become an expert, but to get a basic understanding of how GraphQL works.
+Welcome to the basics of GraphQL. This is not meant for you to become an expert, but to get a basic understanding of everything GraphQL has to offer.
+
+### Basics
+
+There is a only a single endpoint for all your data. This is called the **entry point**. This is where all queries, mutations, and subscriptions are sent. It only accepts a `POST` request.
+
+```http
+curl -X POST -H "Content-Type: application/json" -d '{"query": "{ books { title } }"}' http://localhost:8080/graphql
+```
 
 ### Schema
 
@@ -242,6 +250,39 @@ enum UserBlockDuration {
   The user was blocked for 3 days
   """
   THREE_DAYS
+}
+```
+
+#### Introspection
+
+A note mentioned earlier was that GraphQL is self-documenting. This is because documentation is built into the schema. This is called `introspection`. A client can view the schema a server offers at any time.
+
+All docstrings are available to the client. This is why you can use tools like GraphiQL and GraphQL Playground to explore a GraphQL API.
+
+```graphql
+"""
+Book is a standard book that you'd see on a self
+"""
+type Book {
+  """
+  The title of the book
+  """
+  title: String!
+}
+```
+
+There are some special types associated with introspection.
+
+`__schema` and `__type`
+
+These allow you to query the schema itself and figure out what the type of an object is.
+
+```graphql
+query {
+  __schema {
+    types {
+      name
+    }
 }
 ```
 
@@ -392,7 +433,44 @@ Notice that both `Book` and `AudioBook` implement the `LibraryItem` interface. T
 
 GitHub actually does this with the `Node` interface that nearly all of their types implement.
 
-Full list of types:
+#### Directives
+
+Directives are a powerful feature to modify the behavior of a Schema. They are equivalent to decorators in TypeScript/Python.
+
+Schema
+
+```graphql
+directive @deprecated(reason: String!) on FIELD_DEFINITION
+
+type Query {
+  books: [Book!]! @deprecated(reason: "Use `searchBooks` instead")
+  searchBooks(keyword: String!): [Book!]!
+}
+```
+
+You can completely change the behavior of a resolver with a directive. For example, you can add caching to a field with a directive.
+
+```graphql
+directive @cache(ttl: Int!) on FIELD_DEFINITION
+
+type Query {
+  books: [Book!]! @cache(ttl: 60)
+}
+```
+
+Or even add ownership to a field — this is especially useful for a company with a lot of distributed teams 😉
+
+```graphql
+directive @ownedBy(team: String!) on FIELD_DEFINITION
+
+type Query {
+  books: [Book!]! @ownedBy(team: "@library/backend")
+}
+```
+
+#### All Types
+
+Full list of all types:
 
 ```graphql
 # defines an object
@@ -449,28 +527,6 @@ input BookInput {
 directive @deprecated(reason: String!) on FIELD_DEFINITION
 ```
 
-#### Introspection
-
-A note mentioned earlier was that GraphQL is self-documenting. This is because documentation is built into the schema. This is called `introspection`. All docstrings are available to the client. This is why you can use tools like GraphiQL and GraphQL Playground to explore a GraphQL API.
-
-```graphql
-"""
-Book is a standard book that you'd see on a self
-"""
-type Book {
-  """
-  The title of the book
-  """
-  title: String!
-}
-```
-
-There are some special types associated with introspection.
-
-`__schema` and `__type`
-
-These allow you to query the schema itself and figure out what the type of an object is. This is especially useful for endpoints that return a union or interface type.
-
 ### Queries
 
 A query is a request for data. It is the only way to get data from a GraphQL server. Queries ~~are~~ _should be_ read-only.
@@ -491,9 +547,67 @@ type Query {
 }
 ```
 
+#### Aliases
+
+You can alias any field in a query. This is useful for when you want to query the same field multiple times with different arguments.
+
+schema
+
+```graphql
+type Query {
+  books(keyword: String): [Book!]!
+}
+```
+
+Query
+
+```graphql
+query {
+  LoTR: books(keyword: "The Hobbit") {
+    title
+  }
+  HP: books(keyword: "Harry Potter") {
+    title
+  }
+}
+```
+
+Response
+
+```json
+{
+  "LoTR": [
+    {
+      "title": "The Hobbit"
+    }
+  ],
+  "HP": [
+    {
+      "title": "Harry Potter and the Sorcerer's Stone"
+    }
+  ]
+}
+```
+
+You can also alias queries and mutations
+
+```graphql
+query LoTR {
+  books(keyword: "The Hobbit") {
+    title
+  }
+}
+
+query HP {
+  books(keyword: "Harry Potter") {
+    title
+  }
+}
+```
+
 #### Variables
 
-This is a good place to point out that we can also add variables to our queries. This is useful for when we want to pass in dynamic values to our queries.
+We can also add variables to our queries. This is useful for when we want to pass in dynamic values to our queries.
 
 ```graphql
 query Books($keyword: String, $limit: Int) {
@@ -929,6 +1043,54 @@ But essentially we frontload the database calls and then batch them together to 
 select * from books where id in (1, 2)
 select * from authors where book_id in (1, 2)
 ```
+
+### Errors
+
+GraphQL has a very specific way of handling errors. It's not like a REST API where you can return a 500 error and call it a day. GraphQL has a quite clever approach.
+
+```graphql
+query {
+  books {
+    title
+    author {
+      name
+    }
+  }
+}
+```
+
+Oh no! Our Author cluster is down and can't access any authors. What should we do?
+
+Since author is **non-nullable** we can't just return null. We need to return an error. But how do we do that?
+
+GraphQL will try to fill as much of the request it can, and then `null` out the fields that can't be filled due to an error. From there, a new field appears on our response objects: `errors`.
+
+```json
+{
+  "data": {
+    "books": [
+      {
+        "title": "The Hobbit",
+        "author": null
+      }
+    ]
+  },
+  "errors": [
+    {
+      "message": "Author cluster is down",
+      "locations": [
+        {
+          "line": 4,
+          "column": 5
+        }
+      ],
+      "path": ["books", 0, "author"]
+    }
+  ]
+}
+```
+
+This allows the UI to still show parts it can but also show the errors that occurred.
 
 ## Internal Workings
 
