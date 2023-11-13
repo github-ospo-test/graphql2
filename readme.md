@@ -1,5 +1,5 @@
 ---
-title: Foobar
+title: GraphQL in 1 Hour
 separator: <!--s-->
 verticalSeparator: <!--v-->
 # theme: moon
@@ -1218,6 +1218,8 @@ query {
 
 The N+1 problem is a common problem in GraphQL. It occurs when a query is made that requires multiple requests to the database. If a field is backed by a resolver that makes a database request, then _each field_ will make a database request.
 
+<!--v-->
+
 Take the following Schema
 
 ```graphql
@@ -1234,6 +1236,8 @@ type Query {
   books: [Book!]!
 }
 ```
+
+<!--v-->
 
 Now take the following GraphQL query
 
@@ -1282,7 +1286,7 @@ select * from authors where book_id = 2;
 
 <!--v-->
 
-However this This is where the `DataLoader` comes in (but won't be covered here).
+However this This is where the `DataLoader` comes in (but won't be covered here since it's implementation specific).
 
 But essentially we frontload the database calls and then batch them together to form something like this.
 
@@ -1312,7 +1316,9 @@ Oh no! Our Author cluster is down and can't access any authors. What should we d
 
 <!--v-->
 
-Since author is **non-nullable** we can't just return null. We need to return an error. But how do we do that?
+Since author is **non-nullable** we can't just return `null``. We need to return an error. But how do we do that?
+
+<!--v-->
 
 GraphQL will try to fill as much of the request it can, and then `null` out the fields that can't be filled due to an error. From there, a new field appears on our response objects: `errors`.
 
@@ -1345,9 +1351,121 @@ This allows the UI to still show parts it can but also show the errors that occu
 
 <!--s-->
 
+## Fun Exercises
+
+Let's do GraphQL exercises!
+
+_TOGETHER_ 😈
+
+<!--v-->
+
+Let's find out if we are actually staff members
+
+<!--v-->
+
+```graphql
+query isStaff {
+  viewer {
+    login
+    name
+    company
+    isSiteAdmin
+  }
+}
+```
+
+<!--v-->
+
+```json
+{
+  "data": {
+    "viewer": {
+      "login": "ajhenry",
+      "name": "Andrew Henry",
+      "company": "@github",
+      "isSiteAdmin": false
+    }
+  }
+}
+```
+
+Fun fact, this appears to be a bug since the same query on the REST API returns `true` 😉
+
+```jsonc
+// https://api.github.com/users/ajhenry
+
+{
+  "login": "ajhenry",
+  "name": "Andrew Henry",
+  "company": "@github",
+  "site_admin": true
+}
+```
+
+<!--v-->
+
+Let's find out what the total count of people we can sponsor is
+
+🤑
+
+<!--v-->
+
+```graphql
+query Zen {
+  sponsorables {
+    totalCount
+  }
+}
+```
+
+<!--v-->
+
+Create a new repo
+
+<!--v-->
+
+```graphql
+mutation CreateRepo {
+  createRepository(
+    input: {
+      visibility: PRIVATE
+      name: "new-repo"
+      ownerId: "MDQ6VXNlcjI0OTIzNDA2"
+    }
+  ) {
+    repository {
+      nameWithOwner
+    }
+  }
+}
+```
+
+<!--v-->
+
+Let's delete the repository we created
+
+<!--v-->
+
+Too bad, this isn't available in the GraphQL API 😢
+
+Have to use REST
+
+```bash
+curl -X DELETE \
+  -H "Accept: application/vnd.github.v3+json" \
+  -H "Authorization: token ${token}" \
+   https://api.github.com/repos/${username}/${reponame}
+```
+
+<!--s-->
+
 ## Internal Workings
 
-What you probably didn't need (or want) to know about how GraphQL works under the hood 🤓
+What you probably didn't need (or want) to know about how GraphQL works under the hood
+
+Fair warning, this goes super in depth and has a heavy emphasis on compilers 🤓
+
+<!--v-->
 
 ### Part 1: Schema
 
@@ -1365,11 +1483,15 @@ type Query {
 }
 ```
 
+<!--v-->
+
 #### Lexer
 
 Since GraphQL is a typed language, it needs to know what types are available. This is where the **lexer** comes in. The lexer is responsible for taking the schema and turning it into a list of tokens. These tokens are then passed to the parser.
 
 GraphQL is also a _context-free grammar_ language. This means that the order of the tokens doesn't matter. This is why you can define types in any order you want. It will produce the same result after being parsed.
+
+<!--v-->
 
 The GraphQL spec explicitly lists out all the grammar for the language and how to interpret it. (This is why GraphQL is so easy to implement in other languages).
 
@@ -1380,6 +1502,8 @@ type Book {
   title: String!
 }
 ```
+
+<!--v-->
 
 Lexer output (in JSON)
 
@@ -1437,6 +1561,8 @@ Lexer output (in JSON)
 ```
 
 This is what is passed to the parser to produce an AST.
+
+<!--v-->
 
 #### Parser and ASTs
 

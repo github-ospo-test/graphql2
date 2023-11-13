@@ -5,13 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "reveal-md slides.md",
-    "dev": "reveal-md slides.md -w"
+    "start": "reveal-md readme.md",
+    "dev": "reveal-md readme.md -w"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "mermaid": "^10.6.1",
     "reveal-md": "^5.5.2"
   }
 }
