@@ -1,0 +1,17 @@
+{
+  "name": "graphql-in-1-hour",
+  "version": "1.0.0",
+  "description": "From the surface ✨ to the greasy core 🔧",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "reveal-md slides.md",
+    "dev": "reveal-md slides.md -w"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "reveal-md": "^5.5.2"
+  }
+}
