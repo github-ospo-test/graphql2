@@ -152,10 +152,14 @@ type Resource = Book | AudioBook | Movie
 type Query {
   books: [Book!]!
   book(id: ID!): Book!
+  audioBooks: [AudioBook!]!
+  audioBook(id: ID!): AudioBook!
+  movies: [Movie!]!
+  movie(id: ID!): Movie!
 }
 
 type Mutation {
-  checkoutBook(id: ID!): Resource!
+  checkout(id: ID!): Resource!
 }
 ```
 
@@ -185,12 +189,6 @@ type Query {
 ```
 
 (Changing fields is a bit harder but still very manageable with the `@deprecated` directive)
-
-<!--s-->
-
-### GraphQL vs gRPC
-
-TODO
 
 <!--s-->
 
@@ -231,9 +229,9 @@ type Mutation {
 }
 ```
 
-Clients **must** specify exactly what fields it needs from the server. This is called the **selection set**. The server will only respond with what the client asks for (more accurately, the server just throws away any data the client doesn't ask for).
-
 <!--v-->
+
+Clients **must** specify exactly what fields it needs from the server. This is called the **selection set**. The server will only respond with what the client asks for (more accurately, the server just throws away any data the client doesn't ask for).
 
 From there, the server responds with a JSON response that matches the data shape of the selection set.
 
@@ -244,6 +242,8 @@ query {
   }
 }
 ```
+
+<!--v-->
 
 ```json
 {
@@ -349,6 +349,7 @@ query {
     types {
       name
     }
+  }
 }
 ```
 
@@ -432,6 +433,8 @@ query {
   }
 }
 ```
+
+<!--v-->
 
 This is the data we'd get back
 
@@ -552,7 +555,22 @@ type AudioBook implements LibraryItem {
 }
 ```
 
+<!--v-->
+
 <sub>GitHub actually does this with the `Node` interface that nearly all of their types implement.</sub>
+
+```graphql
+query UserSearch {
+  node(id: "MDQ6VXNlcjI0OTIzNDA2") {
+    ... on User {
+      id
+      login
+    }
+  }
+}
+```
+
+This means you can search for anything globally
 
 <!--v-->
 
@@ -1316,7 +1334,7 @@ Oh no! Our Author cluster is down and can't access any authors. What should we d
 
 <!--v-->
 
-Since author is **non-nullable** we can't just return `null``. We need to return an error. But how do we do that?
+Since author is **non-nullable** we can't just return `null`. We need to return an error. But how do we do that?
 
 <!--v-->
 
@@ -1356,6 +1374,23 @@ This allows the UI to still show parts it can but also show the errors that occu
 Let's do GraphQL exercises!
 
 _TOGETHER_ 😈
+
+<!--v-->
+
+Let's find out all the types we can query from the schema (think back to the introspection query)
+
+<!--v-->
+
+```graphql
+query Schema {
+  __schema {
+    types {
+      name
+      kind
+    }
+  }
+}
+```
 
 <!--v-->
 
@@ -1411,7 +1446,7 @@ Let's find out what the total count of people we can sponsor is
 <!--v-->
 
 ```graphql
-query Zen {
+query Money {
   sponsorables {
     totalCount
   }
@@ -1456,6 +1491,43 @@ curl -X DELETE \
   -H "Authorization: token ${token}" \
    https://api.github.com/repos/${username}/${reponame}
 ```
+
+<!--v-->
+
+Let's find some repository metrics
+
+<!--v-->
+
+```graphql
+query Metrics {
+  repository(owner: "ajhenry", name: "react-google-slides") {
+    metrics {
+      openIssueCount
+      openPullRequestCount
+      closedIssueCount
+      closedPullRequestCount
+      mergedPullRequestCount
+      # lastContributionDate
+    }
+  }
+}
+```
+
+This one is interesting since it uses a feature flag to hide the scheme.
+
+We have to add the following header
+
+```json
+{
+  "GraphQL-Features": "ospo_metrics_api"
+}
+```
+
+<!--s-->
+
+# Thank you!
+
+<sub>Sorry no refunds 🙂</sub>
 
 <!--s-->
 
