@@ -9,7 +9,7 @@ revealOptions:
   maxScale: 1.0
 ---
 
-# GraphQL Crash Course
+# GraphQL Crash Course test
 
 ## Ready in 1 hour or it's free
 
